@@ -13,26 +13,56 @@ class ChessAgent(Agent):
         super().__init__(utility=utility, time_limit_move=time_limit)
         self.time_limit = time_limit
 
-    # This agent does not perform any searching, it sinmply iterates trough all the moves possible and picks the one with the highest utility
+    def train_move(self, board: chess.Board, epsilon: float):
+        flip_value = 1 if board.turn == chess.WHITE else -1
+        legal_moves = list(board.legal_moves)
+        best_move = legal_moves.pop()  # al een random move nemen
+        highest_utility = flip_value * self.utility.board_value(board)
+
+        if random.random() < epsilon:
+            return best_move
+
+        # Loop trough all legal moves
+        for move in legal_moves:
+            board.push(move)  # Play the move
+            if board.is_checkmate():
+                best_move = move
+                highest_utility = 1000000
+                break
+
+            # Determine the value of the board after this move
+            value = flip_value * self.utility.board_value(board)
+            if value > highest_utility:
+                best_move = move
+                highest_utility = value
+
+        return best_move, flip_value * highest_utility, board
+
     def calculate_move(self, board: chess.Board):
         start_time = time.time()
         # If the agent is playing as black, the utility values are flipped (negative-positive)
         flip_value = 1 if board.turn == chess.WHITE else -1
 
-        best_move = random.sample(list(board.legal_moves), 1)[0]  # al een random move nemen
-        highest_utility = 0
+        legal_moves = list(board.legal_moves)
+        best_move = legal_moves.pop()  # al een random move nemen
+        highest_utility = self.utility.board_value(board)
         # Loop trough all legal moves
-        for move in list(board.legal_moves):
+        for move in legal_moves:
             # Check if the maximum calculation time for this move has been reached
             if time.time() - start_time > self.time_limit:
                 break
             board.push(move)  # Play the move
+            if board.is_checkmate():
+                best_move = move
+                highest_utility = 1000000
+                break
             # get usefull info from position
-            board.is_stalemate()
-            board.is_insufficient_material()
-            board.outcome()
-            board.can_claim_threefold_repetition()
-            board.can_claim_draw()
+            # board.is_stalemate()
+            # board.is_insufficient_material()
+            # board.outcome()
+            # board.can_claim_threefold_repetition()
+            # board.can_claim_draw()
+            # castle_rights
 
             # Determine the value of the board after this move
             value = flip_value * ChessAgent.get_board_utility(board)
