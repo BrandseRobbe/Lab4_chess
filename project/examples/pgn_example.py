@@ -3,6 +3,8 @@ import chess.pgn
 import os
 
 """ A game from a pgn file is played out """
+
+
 def pgn_example():
     # Open the file containing the game information
     dirname = os.path.dirname(__file__)
@@ -13,7 +15,7 @@ def pgn_example():
     while running:
         # Read in the game 
         pgn_game = chess.pgn.read_game(pgn)
-        
+
         # Check if the game file is correct
         if pgn_game:
             board = pgn_game.board()
@@ -26,8 +28,10 @@ def pgn_example():
         else:
             running = False
 
+
 def main():
     pgn_example()
+
 
 if __name__ == "__main__":
     main()
