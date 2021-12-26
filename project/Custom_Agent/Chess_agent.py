@@ -1,6 +1,10 @@
+from collections import deque
+
+import numpy as np
+
 from project.chess_agents.agent import Agent
 import chess
-from project.chess_utilities.utility import Utility
+from project.Custom_Agent import Board_utility
 import time
 import random
 
@@ -84,3 +88,82 @@ class ChessAgent(Agent):
             self.color = value
         else:
             raise ValueError("Chess color has to be 'White' or 'Black'")
+
+
+# voorbeeldcode
+class QLearning():
+    def __init__(self, policyModel, targetModel, batchsize, discount, epsilon, decay, sarsa=False):
+        self.memory = deque(maxlen=5000)  # deque gebruiken, enkel de laatste 5000 zetten onthouden
+
+        self.batchsize = batchsize
+        self.discount = discount
+        self.epsilon = epsilon
+        self.decay = decay
+
+        self.policyModel = policyModel
+        self.targetModel = targetModel
+
+    def AddToMemory(self, state, reward, new_state, done, color):
+        self.memory.append((state, reward, new_state, done, color))
+
+    def GetQValPolicy(self, board: chess.Board):
+        boardvalue = Board_utility.BoardUtility.one_hot_board(board)
+        qvalue = self.policyModel.predict(np.expand_dims(boardvalue, axis=0))[0]
+        return qvalue, boardvalue
+
+    # Action with epsilon
+    def GetAction(self, board: chess.Board):
+        flip_value = 1 if board.turn == chess.WHITE else -1
+        legal_moves = list(board.legal_moves)
+        best_move = legal_moves.pop()
+        highest_utility, boardvalue = self.GetQValPolicy(board)
+        highest_utility *= flip_value
+
+        if random.uniform(0, 1) < max([self.epsilon, 0.1]):
+            self.epsilon *= self.decay
+        else:
+            # Loop trough all legal moves
+            for move in legal_moves:
+                board.push(move)  # Play the move
+                if board.is_checkmate():
+                    best_move = move
+                    boardvalue = Board_utility.BoardUtility.one_hot_board(board)
+                    board.pop()
+                    break
+                # Determine the value of the board after this move
+                value, temp_board = self.GetQValPolicy(board)
+                value *= flip_value
+                if value > highest_utility:
+                    best_move = move
+                    highest_utility = value
+                    boardvalue = temp_board
+                board.pop()
+        return best_move, boardvalue, flip_value
+
+    def UpdateTargetModel(self):
+        self.targetModel.set_weights(self.policyModel.get_weights())
+
+    def UpdatePolicyModel(self):
+        if len(self.memory) < self.batchsize:
+            return
+
+        samples = random.sample(self.memory, self.batchsize)
+
+        current_states = np.asarray(list(zip(*samples))[0], dtype=float)
+        rewards = np.asarray(list(zip(*samples))[1], dtype=float)
+        next_states = np.asarray(list(zip(*samples))[2], dtype=float)
+        done = np.asarray(list(zip(*samples))[3], dtype=bool)
+        colors = np.asarray(list(zip(*samples))[4], dtype=bool)
+
+        y = self.policyModel.predict(current_states)
+        next_state_q_values = self.targetModel.predict(next_states)
+        max_q_next_state = np.max(next_state_q_values, axis=1)
+
+        for t in range(self.batchsize):
+            if not done[t]:
+                utility = colors[t] * max_q_next_state[t]
+                y[t] = rewards[t] + self.discount * utility
+            else:
+                y[t] = rewards[t]  # als het schaakmat is, dan weten we de utility al.
+
+        self.policyModel.fit(current_states, y, batch_size=self.batchsize, verbose=0)

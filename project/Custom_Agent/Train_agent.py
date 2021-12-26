@@ -5,96 +5,69 @@ import chess
 import numpy as np
 
 from project.Custom_Agent.Board_utility import BoardUtility
-from project.Custom_Agent.Chess_agent import ChessAgent
+from project.Custom_Agent.Chess_agent import ChessAgent, QLearning
+from project.Custom_Agent.Neural_net import create_utilitymodel
 
 epochs = 10000
-batches = 32
+batchsize = 32
+discount = 0.9
+decay = 0.999
+
+winreward = 1000000
+drawreward = 100
+stepreward = -1
 
 utility = BoardUtility()
 
 agent = ChessAgent(utility, 1)
 epsilon = 0.8
 
+policyModel = create_utilitymodel()
+targetModel = create_utilitymodel()
+deepq = QLearning(policyModel, targetModel, batchsize, discount, epsilon, decay)
+
 training_dataset = []
+
+targetupdatefreq = 5000
+targetupdatecounter = 0
+reward_count = [0, 0, 0]
 
 for i in range(epochs):
     board = chess.Board()
-    epsilon *= 0.9
-    while True:
-        if board.is_checkmate() or board.is_stalemate():
+    boardValue = BoardUtility.one_hot_board(board)
+    pgn = ""
+    for _ in range(300):
+        if board.is_checkmate() or board.is_stalemate() or board.is_insufficient_material():
             break
         # whites move
-        move, utility_val, board = agent.train_move(board)
+        move, newBoardValue, color = deepq.GetAction(board)
         board.push(move)
+        pgn += "%s. %s " % (i, move.uci())
+
         if board.is_checkmate():
-            reward = 1000000
-        elif board.is_stalemate():
-            reward = 100
+            reward = winreward
+            done = True
+            reward_count[0] += 1
+        elif board.is_stalemate() or board.is_insufficient_material():  # board.is_seventyfive_moves() #board.is_fivefold_repetition() nog twee exit condidtions,
+            reward = drawreward
+            done = True
+            reward_count[1] += 1
         else:
-            reward = -1
-        training_dataset.append((move, utility_val, board))
+            reward = stepreward
+            done = False
+            reward_count[2] += 1
 
+        deepq.AddToMemory(boardValue, reward, newBoardValue, done, color)
+        boardValue = newBoardValue
 
+        deepq.UpdatePolicyModel()
+        print("\rTraining episode: %s, prev reward: %s" % (str(i + 1), reward_count), end="")
 
-# voorbeeldcode
-class QLearning():
-    def __init__(self, policyModel, targetModel, possibleActions, batchsize, discount, epsilon, decay, sarsa=False):
-        self.memory = deque(maxlen=5000) # deque gebruiken, enkel de laatste 5000 zetten onthouden
+        # target al dan niet updaten
+        targetupdatecounter += 1
+        if targetupdatecounter == targetupdatefreq:
+            targetupdatecounte = 0
+            deepq.UpdateTargetModel()
 
-        self.batchsize = batchsize
-        self.discount = discount
-        self.epsilon = epsilon
-        self.decay = decay
-
-        self.policyModel = policyModel
-        self.targetModel = targetModel
-
-        self.possibleActions = possibleActions
-
-    def AddToMemory(self, state, reward, new_state, done):
-        self.memory.append((state, reward, new_state, done))
-
-    def GetQValPolicy(self, board: chess.Board):
-        # board omzetten naar iets dat in het model past
-        # -> door policyModel halen
-        state = ...
-        qvalue = self.policyModel.predict(state)[0]
-        return qvalue
-
-    # Action with epsilon
-    def GetAction(self, moves):
-        qvals = [self.GetQValPolicy(moves) for _ in moves]
-        # altijd blijven exploreren
-        if self.epsilon > 0.1:
-            self.epsilon *= self.decay
-        if self.epsilon > random.random():
-            return random.choice(self.possibleActions)
-        else:
-            return np.argmax(qvals)
-
-    def UpdateTargetModel(self):
-        self.targetModel.set_weights(self.policyModel.get_weights())
-
-    def UpdatePolicyModel(self):
-        if len(self.memory) < self.batchsize:
-            return
-
-        samples = random.sample(self.memory, self.batchsize)
-
-        checkmate = np.asarray(list(zip(*samples))[4], dtype=bool)
-        rewards = np.asarray(list(zip(*samples))[2], dtype=float)
-
-        current_states = np.asarray(list(zip(*samples))[0], dtype=float)
-        next_states = np.asarray(list(zip(*samples))[3], dtype=float)
-
-        y = self.policyModel.predict(current_states)
-        next_state_q_values = self.targetModel.predict(next_states)
-        max_q_next_state = np.max(next_state_q_values, axis=1)
-
-        for t in range(self.batchsize):
-            if not checkmate[t]:
-                y[t] = rewards[t] + self.discount * max_q_next_state[t]
-            else:
-                y[t] = rewards[t]  # als het schaakmat is, dan weten we de utility al.
-
-        self.policyModel.fit(current_states, y, batch_size=self.batchsize, verbose=0)
+    print()
+    print(pgn)
