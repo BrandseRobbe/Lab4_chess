@@ -154,6 +154,8 @@ class QLearning():
         next_states = np.asarray(list(zip(*samples))[2], dtype=float)
         done = np.asarray(list(zip(*samples))[3], dtype=bool)
         colors = np.asarray(list(zip(*samples))[4], dtype=bool)
+        # next states bevat momenteel enkel nog maar de volgende state na een zet uit te voeren
+        # het moet eigenlijk alle mogelijke volgende states bevatten zodat de max utility uit allemaal kan gehaald worden.
 
         y = self.policyModel.predict(current_states)
         next_state_q_values = self.targetModel.predict(next_states)
