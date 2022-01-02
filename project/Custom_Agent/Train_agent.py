@@ -1,5 +1,7 @@
+import os
 from collections import deque
 import random
+from datetime import datetime
 
 import chess
 import numpy as np
@@ -10,7 +12,9 @@ from project.Custom_Agent.Neural_net import create_utilitymodel
 
 epochs = 10000
 batchsize = 32
+learning_rate = 0.1  # kan nog gradueel verlaagt worden
 discount = 0.9
+epsilon = 0.8
 decay = 0.999
 
 winreward = 1000000
@@ -20,54 +24,53 @@ stepreward = -1
 utility = BoardUtility()
 
 agent = ChessAgent(utility, 1)
-epsilon = 0.8
 
 policyModel = create_utilitymodel()
-targetModel = create_utilitymodel()
-deepq = QLearning(policyModel, targetModel, batchsize, discount, epsilon, decay)
+deepq = QLearning(policyModel, batchsize, learning_rate, discount, epsilon, decay, winreward, drawreward, stepreward)
 
 training_dataset = []
 
-targetupdatefreq = 5000
-targetupdatecounter = 0
+trainmodelfreq = 20
+trainmodelcounter = 0
+
+savemodelfreq = 200
+savemodelcounter = 0
 reward_count = [0, 0, 0]
+
+if not os.path.exists("model_saves"):
+    raise ModuleNotFoundError("Wrong working directory.")
+working_dir = "model_saves/Session_%s" % len(os.listdir("model_saves"))
+os.mkdir(working_dir)
 
 for i in range(epochs):
     board = chess.Board()
     boardValue = BoardUtility.one_hot_board(board)
     pgn = ""
-    for _ in range(300):
+    for t in range(300):
         if board.is_checkmate() or board.is_stalemate() or board.is_insufficient_material():
             break
         # whites move
-        move, newBoardValue, color = deepq.GetAction(board)
+        move, reward, done = deepq.GetAction(board)
         board.push(move)
-        pgn += "%s. %s " % (i, move.uci())
+        pgn += "%s. %s " % (t+1, move.uci())
 
-        if board.is_checkmate():
-            reward = winreward
-            done = True
-            reward_count[0] += 1
-        elif board.is_stalemate() or board.is_insufficient_material():  # board.is_seventyfive_moves() #board.is_fivefold_repetition() nog twee exit condidtions,
-            reward = drawreward
-            done = True
-            reward_count[1] += 1
-        else:
-            reward = stepreward
-            done = False
-            reward_count[2] += 1
+        # startstate board toevoegen in one_hot vorm, next state in chess.board vorm omdat er nog extra bewerkingen nodig zijn.
+        deepq.AddToMemory(boardValue, reward, board, done)
+        boardValue = BoardUtility.one_hot_board(board)
 
-        deepq.AddToMemory(boardValue, reward, newBoardValue, done, color)
-        boardValue = newBoardValue
-
-        deepq.UpdatePolicyModel()
-        print("\rTraining episode: %s, prev reward: %s" % (str(i + 1), reward_count), end="")
+        trainmodelcounter += 1
+        if trainmodelfreq == trainmodelcounter:
+            trainmodelcounter = 0
+            deepq.UpdatePolicyModel()
+            print("\rTraining episode: %s, prev reward: %s" % (str(i + 1), deepq.rewardcount), end="")
 
         # target al dan niet updaten
-        targetupdatecounter += 1
-        if targetupdatecounter == targetupdatefreq:
-            targetupdatecounte = 0
-            deepq.UpdateTargetModel()
-
+        savemodelcounter += 1
+        if savemodelcounter == savemodelfreq:
+            savemodelcounter = 0
+            file_name = str(datetime.now().time().replace(microsecond=0)).replace(":", "_")
+            path = working_dir + "/" + file_name + ".h5"
+            print("\nsaved at %s" % (path))
+            deepq.policyModel.save(path)
     print()
     print(pgn)
