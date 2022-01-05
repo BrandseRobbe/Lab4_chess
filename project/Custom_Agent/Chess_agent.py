@@ -2,6 +2,7 @@ from collections import deque
 
 import numpy as np
 
+from project.Custom_Agent.Board_utility import BoardUtility
 from project.chess_agents.agent import Agent
 import chess
 from project.Custom_Agent import Board_utility
@@ -92,56 +93,70 @@ class ChessAgent(Agent):
 
 # voorbeeldcode
 class QLearning():
-    def __init__(self, policyModel, targetModel, batchsize, discount, epsilon, decay, sarsa=False):
+    def __init__(self, policyModel, batchsize, learning_rate, discount, epsilon, decay, winreward, drawreward, stepreward):
         self.memory = deque(maxlen=5000)  # deque gebruiken, enkel de laatste 5000 zetten onthouden
 
         self.batchsize = batchsize
+        self.learning_rate = learning_rate
         self.discount = discount
         self.epsilon = epsilon
         self.decay = decay
 
-        self.policyModel = policyModel
-        self.targetModel = targetModel
+        self.winreward = winreward
+        self.drawreward = drawreward
+        self.stepreward = stepreward
+        self.rewardcount = [0, 0, 0]
 
-    def AddToMemory(self, state, reward, new_state, done, color):
-        self.memory.append((state, reward, new_state, done, color))
+        self.policyModel = policyModel
+
+    def AddToMemory(self, state, reward, new_state, done):
+        self.memory.append((state, reward, new_state, done))
 
     def GetQValPolicy(self, board: chess.Board):
         boardvalue = Board_utility.BoardUtility.one_hot_board(board)
         qvalue = self.policyModel.predict(np.expand_dims(boardvalue, axis=0))[0]
-        return qvalue, boardvalue
+        return qvalue
+
+    def rewardFunction(self, board: chess.Board, move: chess.Move):
+        flip_value = 1 if board.turn == chess.WHITE else -1
+        utility = flip_value * self.GetQValPolicy(board)
+        board.push(move)
+        if board.is_checkmate():
+            reward = self.winreward
+            done = True
+        elif board.is_stalemate() or board.is_insufficient_material():  # board.is_seventyfive_moves() #board.is_fivefold_repetition() nog twee exit condidtions,
+            reward = self.drawreward
+            done = True
+        else:
+            reward = self.stepreward
+            done = False
+        board.pop()
+        return reward, utility, done
 
     # Action with epsilon
     def GetAction(self, board: chess.Board):
-        flip_value = 1 if board.turn == chess.WHITE else -1
         legal_moves = list(board.legal_moves)
-        best_move = legal_moves.pop()
-        highest_utility, boardvalue = self.GetQValPolicy(board)
-        highest_utility *= flip_value
+
+        # default values voor epsilon
+        best_move = legal_moves.pop(random.randrange(len(legal_moves)))  # random move uitkiezen als default move
+        reward, highest_utility, done = self.rewardFunction(board, best_move)
 
         if random.uniform(0, 1) < max([self.epsilon, 0.1]):
             self.epsilon *= self.decay
         else:
             # Loop trough all legal moves
             for move in legal_moves:
-                board.push(move)  # Play the move
-                if board.is_checkmate():
-                    best_move = move
-                    boardvalue = Board_utility.BoardUtility.one_hot_board(board)
-                    board.pop()
-                    break
-                # Determine the value of the board after this move
-                value, temp_board = self.GetQValPolicy(board)
-                value *= flip_value
-                if value > highest_utility:
-                    best_move = move
-                    highest_utility = value
-                    boardvalue = temp_board
-                board.pop()
-        return best_move, boardvalue, flip_value
+                reward, highest_utility, done = self.rewardFunction(board, best_move)
 
-    def UpdateTargetModel(self):
-        self.targetModel.set_weights(self.policyModel.get_weights())
+        # gekregen rewards bijhouden
+        if reward == self.stepreward:
+            self.rewardcount[2] += 1
+        elif reward == self.winreward:
+            self.rewardcount[0] += 1
+        else:
+            self.rewardcount[1] += 1
+
+        return best_move, reward, done
 
     def UpdatePolicyModel(self):
         if len(self.memory) < self.batchsize:
@@ -151,20 +166,37 @@ class QLearning():
 
         current_states = np.asarray(list(zip(*samples))[0], dtype=float)
         rewards = np.asarray(list(zip(*samples))[1], dtype=float)
-        next_states = np.asarray(list(zip(*samples))[2], dtype=float)
+        next_states = list(zip(*samples))[2]
         done = np.asarray(list(zip(*samples))[3], dtype=bool)
-        colors = np.asarray(list(zip(*samples))[4], dtype=bool)
         # next states bevat momenteel enkel nog maar de volgende state na een zet uit te voeren
         # het moet eigenlijk alle mogelijke volgende states bevatten zodat de max utility uit allemaal kan gehaald worden.
 
+        # q value = (de maximum utility die te behalen valt vanuit de behaalde positie *discount )+ reward
+        # utilities ophalen
+        best_q_next_state = []
+        for board in next_states:
+            # alle mogelijke moves overlopen en utilities van berekenen
+            states = []
+            for move in list(board.legal_moves):
+                board.push(move)
+                states.append(BoardUtility.one_hot_board(board))
+                board.pop()
+            states = np.asarray(states, dtype=int)
+            utils = self.policyModel.predict(states)  # utility voor elke mogelijke move berekenen
+            if board.turn == chess.WHITE:
+                # voor wit kiezen we de hoogste utility
+                best_q_next_state.append(np.max(utils))
+            else:
+                # voor zwarteis de best positie, juist de zet die het slechtst is voor wit.
+                best_q_next_state.append(np.min(utils))
+
         y = self.policyModel.predict(current_states)
-        next_state_q_values = self.targetModel.predict(next_states)
-        max_q_next_state = np.max(next_state_q_values, axis=1)
 
         for t in range(self.batchsize):
             if not done[t]:
-                utility = colors[t] * max_q_next_state[t]
-                y[t] = rewards[t] + self.discount * utility
+                # werken met learning rate t.o.v. transition model (temporal-difference q-learning)
+                # -> iets simpeler in uitvoering en ook een consistent result
+                y[t] = ((1-self.learning_rate) * y[t]) + (self.learning_rate * (rewards[t] + (self.discount * best_q_next_state[t]) - y[t]))
             else:
                 y[t] = rewards[t]  # als het schaakmat is, dan weten we de utility al.
 
