@@ -1,4 +1,5 @@
 from project.chess_agents.agent import Agent
+from project.Custom_Agent.checkmate_checker import check_for_checkmate
 import chess
 from project.chess_utilities.utility import Utility
 import time
@@ -8,13 +9,15 @@ import random
 
 
 class ChessAgent(Agent):
-    # Initialize your agent with whatever parameters you want
+    # Initialize your agsent with whatever parameters you want
     def __init__(self, utility, time_limit=14.5) -> None:
         super().__init__(utility=utility, time_limit_move=time_limit)
         self.time_limit = time_limit
 
     # This agent does not perform any searching, it sinmply iterates trough all the moves possible and picks the one with the highest utility
     def calculate_move(self, board: chess.Board):
+        checkmate_possible = check_for_checkmate(board, 10)
+
         start_time = time.time()
         # If the agent is playing as black, the utility values are flipped (negative-positive)
         flip_value = 1 if board.turn == chess.WHITE else -1
