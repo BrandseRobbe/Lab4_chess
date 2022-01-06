@@ -4,7 +4,6 @@ import numpy as np
 
 from project.Custom_Agent.Board_utility import BoardUtility
 from project.chess_agents.agent import Agent
-from project.Custom_Agent.checkmate_checker import check_for_checkmate
 import chess
 from project.Custom_Agent.Board_utility import BoardUtility
 import time
@@ -14,7 +13,7 @@ import random
 
 
 class ChessAgent(Agent):
-    # Initialize your agsent with whatever parameters you want
+    # Initialize your agent with whatever parameters you want
     def __init__(self, utility, time_limit=14.5) -> None:
         super().__init__(utility=utility, time_limit_move=time_limit)
         self.time_limit = time_limit
@@ -45,8 +44,6 @@ class ChessAgent(Agent):
         return best_move, flip_value * highest_utility, board
 
     def calculate_move(self, board: chess.Board):
-        checkmate_possible = check_for_checkmate(board, 10)
-
         start_time = time.time()
         # If the agent is playing as black, the utility values are flipped (negative-positive)
         flip_value = 1 if board.turn == chess.WHITE else -1
@@ -73,7 +70,7 @@ class ChessAgent(Agent):
             # castle_rights
 
             # Determine the value of the board after this move
-            value = flip_value * ChessAgent.get_board_utility(board)
+            value = flip_value * self.utility.board_value(board)
             # If this is better than all other previous moves, store this move and its utility
             if value > highest_utility:
                 best_move = move
