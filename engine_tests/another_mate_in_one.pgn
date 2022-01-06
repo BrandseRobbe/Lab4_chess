@@ -1,0 +1,21 @@
+[Event "Computer chess game"]
+[Site "ROBBE"]
+[Date "2021.12.22"]
+[Round "?"]
+[White "Robbe"]
+[Black "Robbe"]
+[Result "*"]
+[BlackElo "2400"]
+[ECO "C20"]
+[Opening "Open Game"]
+[Time "16:26:46"]
+[Variation "Napoleon's Opening, 1.e4 e5 2.Qf3"]
+[WhiteElo "2400"]
+[TimeControl "300"]
+[Termination "unterminated"]
+[PlyCount "6"]
+[WhiteType "human"]
+[BlackType "human"]
+
+1. e4 e5 2. Qf3 Nc6 3. Bc4 d6 *
+
