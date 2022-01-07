@@ -117,12 +117,12 @@ class QLearning():
 
     def GetQValPolicy(self, board: chess.Board):
         # Get a usable representation of the board state
-        boardvalue = BoardUtility.one_hot_board(board)
-
+        boardvalue = BoardUtility.get_board_data(board)
+        # predict data has to be slightly changed so dimentions fit for single prediction
+        x1 = boardvalue[0][np.newaxis, ...]
+        x2 = boardvalue[1][np.newaxis, ...]
         # Predict the qvalue for this state
-        qvalue = self.policyModel.predict(
-            np.expand_dims(boardvalue, axis=0))[0]
-
+        qvalue = self.policyModel.predict({"board_data": x1, "feature_data": x2})[0][0]
         return qvalue
 
     def rewardFunction(self, board: chess.Board, move: chess.Move):
@@ -188,15 +188,19 @@ class QLearning():
 
         samples = random.sample(self.memory, self.batchsize)
 
-        current_states = np.asarray(list(zip(*samples))[0], dtype=float)
+        current_states = np.asarray(list(zip(*samples))[0], dtype=object)
         rewards = np.asarray(list(zip(*samples))[1], dtype=float)
-        next_states = np.asarray(list(zip(*samples))[2], dtype=float)
+        next_states = np.asarray(list(zip(*samples))[2], dtype=object)
         done = np.asarray(list(zip(*samples))[3], dtype=bool)
         # next states bevat momenteel enkel nog maar de volgende state na een zet uit te voeren
         # het moet eigenlijk alle mogelijke volgende states bevatten zodat de max utility uit allemaal kan gehaald worden.
 
-        y = self.policyModel.predict(current_states)
-        y2 = self.policyModel.predict(next_states)
+        one_hot = np.asarray(list(zip(*current_states))[0], dtype=float)
+        features = np.asarray(list(zip(*current_states))[1], dtype=float)
+        y = self.policyModel.predict({"board_data": one_hot, "feature_data": features})[..., 0]
+        one_hot2 = np.asarray(list(zip(*current_states))[0], dtype=float)
+        features2 = np.asarray(list(zip(*current_states))[1], dtype=float)
+        y2 = self.policyModel.predict({"board_data": one_hot2, "feature_data": features2})[..., 0]
 
         for t in range(self.batchsize):
             if not done[t]:
@@ -208,5 +212,4 @@ class QLearning():
                 # als het schaakmat is, dan weten we de utility al.
                 y[t] = rewards[t]
 
-        self.policyModel.fit(
-            current_states, y, batch_size=self.batchsize, verbose=0)
+        self.policyModel.fit({"board_data": one_hot, "feature_data": features}, y, batch_size=self.batchsize, verbose=0)

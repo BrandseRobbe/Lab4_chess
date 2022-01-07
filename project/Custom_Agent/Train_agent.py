@@ -1,10 +1,12 @@
 import os
+import time
 from collections import deque
 import random
 from datetime import datetime
 
 import chess
 import numpy as np
+from tqdm import tqdm
 
 from project.Custom_Agent.Board_utility import BoardUtility
 from project.Custom_Agent.Chess_agent import ChessAgent, QLearning
@@ -12,7 +14,7 @@ from project.Custom_Agent.Neural_net import create_utilitymodel
 
 # Training hyperparameters
 epochs = 10000
-batchsize = 32
+batchsize = 2
 learning_rate = 0.1  # kan nog gradueel verlaagt worden
 discount = 0.9
 epsilon = 0.8
@@ -34,7 +36,7 @@ deepq = QLearning(policyModel, batchsize, learning_rate,
 # Training
 training_dataset = []
 
-trainmodelfreq = 20
+trainmodelfreq = 3
 trainmodelcounter = 0
 
 # Model saving
@@ -62,8 +64,7 @@ for i in range(epochs):
     done = False
 
     # To make sure the game doesn't run endlessly, we capped the number of move that can be made in a game
-    for t in range(max_moves):
-
+    for t in tqdm(range(max_moves)):
         # In case that the board is in a checkmate or stalemate position OR one of the sides has insufficient training material, the training is terminated
         if board.is_checkmate() or board.is_stalemate() or board.is_insufficient_material():
             break
@@ -83,11 +84,11 @@ for i in range(epochs):
         # Whites move
         white_move, white_reward, done = deepq.GetAction(board)
         board.push(white_move)
-        pgn += f"{t + 1}. {white_move.uci()} "
+        pgn += f" {t + 1}. {white_move.uci()} "
 
         # Terminate game when done
         if done:
-            state = utility.one_hot_board(board)
+            state = utility.get_board_data(board)
             deepq.AddToMemory(state, white_reward, state, done)
             break
 
@@ -96,38 +97,39 @@ for i in range(epochs):
         # Blacks move
         black_move, black_reward, done = deepq.GetAction(board)
         board.push(black_move)
+        pgn += black_move.uci()
 
         # Terminate game when done
         if done:
-            state = utility.one_hot_board(board)
+            state = utility.get_board_data(board)
             deepq.AddToMemory(state, black_reward, state, done)
             break
 
         # Add memory for white
         next_white_move, next_white_reward, _ = deepq.GetAction(board)
 
-        state = utility.one_hot_board(board)
+        state = utility.get_board_data(board)
         board.push(next_white_move)
-        next_state = utility.one_hot_board(board)
-
-        # START EXAMPLE CODE
-        # Lookup if a near checkmate in x moves is possible
-        possible_checks_white, possible_checks_black = utility.check_for_checks(board,
-                                                                                move_limit=1)  # 2 is a max limit
-        one_hot_white_checks, one_hot_black_checks = utility.one_hot_checks(possible_checks_white,
-                                                                            possible_checks_black)
-
-        boardValue = np.concatenate((boardValue, one_hot_white_checks, one_hot_black_checks), axis=0)
-        # END EXAMPLE CODE
+        # Terminate game when done
+        if done:
+            state = utility.get_board_data(board)
+            deepq.AddToMemory(state, black_reward, state, done)
+            break
+        next_state = utility.get_board_data(board)
 
         deepq.AddToMemory(state, white_reward, next_state, done)
 
         # Add memory for black
         next_black_move, next_black_reward, _ = deepq.GetAction(board)
 
-        state = utility.one_hot_board(board)
+        state = utility.get_board_data(board)
         board.push(next_black_move)
-        next_state = utility.one_hot_board(board)
+        # Terminate game when done
+        if done:
+            state = utility.get_board_data(board)
+            deepq.AddToMemory(state, black_reward, state, done)
+            break
+        next_state = utility.get_board_data(board)
 
         board.pop()
         board.pop()
@@ -151,5 +153,7 @@ for i in range(epochs):
             path = working_dir + "/" + file_name + ".h5"
             print("\nsaved at %s" % (path))
             deepq.policyModel.save(path)
+
+
     print()
     print(pgn)

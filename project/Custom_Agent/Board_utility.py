@@ -23,7 +23,7 @@ class BoardUtility(Utility):
 
     @staticmethod
     def one_hot_board(board: chess.Board):
-        board_array = np.zeros(shape=(8, 8, 13))
+        board_array = np.zeros(shape=(8, 8, 13), dtype="float32")
         one_hot_pieces = {
             # White pieces
             "R": [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -53,7 +53,15 @@ class BoardUtility(Utility):
                 else:
                     board_array[i][j] = one_hot_pieces[current_piece.symbol()]
                 current_tile += 1
+
         return board_array
+
+    @staticmethod
+    def get_board_data(board: chess.Board):
+        one_hot_data = BoardUtility.one_hot_board(board)
+        extracted_features = BoardUtility.check_for_checks(board, 2)
+        extracted_features = np.asarray(extracted_features).astype('float32')
+        return one_hot_data, extracted_features
 
     # search for (unavoidable) checkmate in x turns
     @staticmethod
@@ -115,7 +123,7 @@ class BoardUtility(Utility):
                     nr_white_in_check += 1
                 else:
                     nr_black_in_check += 1  # it's black's turn
-            # check if we still have to go one turn deeper
+            # search deeper if max depth is not reached yet
             if not depth + 1 > move_limit:
                 for move in board.legal_moves:
                     board.push(move)
