@@ -7,16 +7,18 @@ import chess.engine
 import chess.pgn
 
 """ An agent plays a game against the stockfish engine """
+
+
 def play_stockfish():
-    
     time_limit = 5.0
-        
+
     # Setup
     board = chess.Board()
     # Define agent here
     white_player = ChessAgent(ExampleUtility(), 5.0)
     # Enter your path here:
-    black_player = chess.engine.SimpleEngine.popen_uci("C:/Users/Polux/AI/UA/stockfish_14.1_win_x64_avx2/stockfish_14.1_win_x64_avx2.exe")
+    black_player = chess.engine.SimpleEngine.popen_uci(
+        "../../engines/stockfish_14.1_win_x64_avx2.exe")  # download stockfish and store it in ./engines
     # Determine the skill level of Stockfish:
     black_player.configure({"Skill Level": 1})
     limit = chess.engine.Limit(time=time_limit)
@@ -42,7 +44,7 @@ def play_stockfish():
         board.push(move)
         print(board)
         print("----------------------------------------")
-        
+
         # Check if a player has won
         if board.is_checkmate():
             running = False
@@ -68,8 +70,10 @@ def play_stockfish():
     black_player.quit()
     return board
 
+
 def main():
     play_stockfish()
+
 
 if __name__ == "__main__":
     main()
