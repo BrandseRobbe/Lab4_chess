@@ -91,37 +91,40 @@ class BoardUtility(Utility):
     @staticmethod
     def check_for_checks(board: chess.Board, move_limit):
         """
-            A simple breadth first search to check for checkmates after a certain amount of moves
+            A simple breadth first search to check for checks after a certain amount of moves
             :param board: The board to discover possible checks on.
-            :param move_limit: The maximum number of moves to scout ahead
+            :param move_limit: The maximum number of moves (turns) to scout ahead
         """
 
         board_queue = Queue()
-        nr_white_in_checkmate = nr_black_in_checkmate = 0  # The number of possible checkmates we will find
+        nr_white_in_check = nr_black_in_check = 0  # The number of possible checks we will find
 
         board_queue.push((board, 0))
+        # keep history of positions, we don't want to count the same position twice
+        history = []
 
         while not board_queue.isEmpty():
             board, depth = board_queue.pop()
-
-            for move in board.legal_moves:
-                if board.is_into_check(move):
-                    if board.turn == chess.WHITE:  # it's white's turn and black is in checkmate
-                        nr_black_in_checkmate += 1
-                    else:
-                        nr_white_in_checkmate += 1  # it's black's turn and white is in checkmate
+            # if we already checked this position we skip it
+            if board.fen() in history:
+                continue
+            history.append(board.fen())
+            # is current player is in check
+            if board.is_check():
+                if board.turn == chess.WHITE:  # it's white's turn
+                    nr_white_in_check += 1
                 else:
-                    if not depth + 1 > move_limit:
-                        depth += 1
-                        board.push(move)
-                        board_queue.push((board.copy(), depth))
-                        board.pop()  # revert the move
-                        depth -= 1
+                    nr_black_in_check += 1  # it's black's turn
+            # check if we still have to go one turn deeper
+            if not depth + 1 > move_limit:
+                for move in board.legal_moves:
+                    board.push(move)
+                    board_queue.push((board.copy(), depth + 1))
+                    board.pop()  # revert the move
 
-        return nr_white_in_checkmate, nr_black_in_checkmate
+        return nr_white_in_check, nr_black_in_check
 
     # hier wordt board info door het neural network gehaald om de utility te berekenen
-
     def board_value(self, board: chess.Board):
         pass
 
