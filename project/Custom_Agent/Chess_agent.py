@@ -93,7 +93,8 @@ class ChessAgent(Agent):
 
 # voorbeeldcode
 class QLearning():
-    def __init__(self, policyModel, batchsize, learning_rate, discount, epsilon, decay, winreward, drawreward, stepreward):
+    def __init__(self, policyModel, batchsize, learning_rate, discount, epsilon, decay, winreward, drawreward,
+                 stepreward):
         # deque gebruiken, enkel de laatste 5000 zetten onthouden
         self.memory = deque(maxlen=5000)
 
@@ -150,17 +151,15 @@ class QLearning():
     # Action with epsilon
     def GetAction(self, board: chess.Board):
         legal_moves = list(board.legal_moves)
-        highest_util = 0
-
         flip_value = 1 if board.turn == chess.WHITE else -1
+
+        # Select a random move
+        move = legal_moves.pop(random.randrange(len(legal_moves)))
+        reward, highest_util, done = self.rewardFunction(board, move)
 
         # Determine wheter to take a random action or the best option based on a given epsilon
         if random.uniform(0, 1) < max([self.epsilon, 0.1]):
             self.epsilon *= self.decay
-
-            # Select a random move
-            move = legal_moves[random.randrange(len(legal_moves))]
-            reward, utility, done = self.rewardFunction(board, move)
         else:
             # Loop trough all legal moves and select the best one
             for m in legal_moves:
@@ -168,7 +167,7 @@ class QLearning():
 
                 if (flip_value == -1 and util < highest_util) or (flip_value == 1 and util > highest_util):
                     move = m
-                    utility = util
+                    highest_util = util
                     reward = r
                     done = d
 
@@ -190,39 +189,20 @@ class QLearning():
 
         current_states = np.asarray(list(zip(*samples))[0], dtype=float)
         rewards = np.asarray(list(zip(*samples))[1], dtype=float)
-        next_states = list(zip(*samples))[2]
+        next_states = np.asarray(list(zip(*samples))[2], dtype=float)
         done = np.asarray(list(zip(*samples))[3], dtype=bool)
         # next states bevat momenteel enkel nog maar de volgende state na een zet uit te voeren
         # het moet eigenlijk alle mogelijke volgende states bevatten zodat de max utility uit allemaal kan gehaald worden.
 
-        # q value = (de maximum utility die te behalen valt vanuit de behaalde positie *discount )+ reward
-        # utilities ophalen
-        best_q_next_state = []
-        for board in next_states:
-            # alle mogelijke moves overlopen en utilities van berekenen
-            states = []
-            for move in list(board.legal_moves):
-                board.push(move)
-                states.append(BoardUtility.one_hot_board(board))
-                board.pop()
-            states = np.asarray(states, dtype=int)
-            # utility voor elke mogelijke move berekenen
-            utils = self.policyModel.predict(states)
-            if board.turn == chess.WHITE:
-                # voor wit kiezen we de hoogste utility
-                best_q_next_state.append(np.max(utils))
-            else:
-                # voor zwarteis de best positie, juist de zet die het slechtst is voor wit.
-                best_q_next_state.append(np.min(utils))
-
         y = self.policyModel.predict(current_states)
+        y2 = self.policyModel.predict(next_states)
 
         for t in range(self.batchsize):
             if not done[t]:
                 # werken met learning rate t.o.v. transition model (temporal-difference q-learning)
                 # -> iets simpeler in uitvoering en ook een consistent result
-                y[t] = ((1-self.learning_rate) * y[t]) + (self.learning_rate *
-                                                          (rewards[t] + (self.discount * best_q_next_state[t]) - y[t]))
+                y[t] = ((1 - self.learning_rate) * y[t]) + (
+                        self.learning_rate * (rewards[t] + (self.discount * y2[t]) - y[t]))
             else:
                 # als het schaakmat is, dan weten we de utility al.
                 y[t] = rewards[t]

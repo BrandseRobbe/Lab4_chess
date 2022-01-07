@@ -70,11 +70,6 @@ for i in range(epochs):
         if board.is_checkmate() or board.is_stalemate() or board.is_insufficient_material():
             break
 
-        # Whites move
-        white_move, white_reward, done = deepq.GetAction(board)
-        board.push(move)
-        pgn += f"{t+1}. {move.uci()} "
-
         """
         Saves the memories correctly:
 
@@ -85,17 +80,51 @@ for i in range(epochs):
 
         """
 
-        # start state board toevoegen in one_hot vorm, next state in chess.board vorm omdat er nog extra bewerkingen nodig zijn.
-        deepq.AddToMemory(boardValue, reward, board, done)
-        boardValue = utility.one_hot_board(board)
+        ### White is playing ###
+
+        # Whites move
+        white_move, white_reward, done = deepq.GetAction(board)
+        board.push(white_move)
+        pgn += f"{t+1}. {white_move.uci()} "
+
+        # Terminate game when done
+        if done:
+            state = utility.one_hot_board(board)
+            deepq.AddToMemory(state, white_reward, state, done)
+            break
+
+        ### Black is playing ###
 
         # Blacks move
-        move, reward, done = deepq.GetAction(board)
-        board.push(move)
+        black_move, black_reward, done = deepq.GetAction(board)
+        board.push(black_move)
 
-        # start state board toevoegen in one_hot vorm, next state in chess.board vorm omdat er nog extra bewerkingen nodig zijn.
-        deepq.AddToMemory(boardValue, reward, board, done)
-        boardValue = utility.one_hot_board(board)
+        # Terminate game when done
+        if done:
+            state = utility.one_hot_board(board)
+            deepq.AddToMemory(state, black_reward, state, done)
+            break
+
+        # Add memory for white
+        next_white_move, next_white_reward, _ = deepq.GetAction(board)
+
+        state = utility.one_hot_board(board)
+        board.push(next_white_move)
+        next_state = utility.one_hot_board(board)
+
+        deepq.AddToMemory(state, white_reward, next_state, done)
+
+        # Add memory for black
+        next_black_move, next_black_reward, _ = deepq.GetAction(board)
+
+        state = utility.one_hot_board(board)
+        board.push(next_black_move)
+        next_state = utility.one_hot_board(board)
+
+        board.pop()
+        board.pop()
+
+        deepq.AddToMemory(state, black_reward, next_state, done)
 
         trainmodelcounter += 1
         # Update the policy model
