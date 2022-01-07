@@ -14,7 +14,7 @@ board = chess.Board("8/8/1k6/5R2/6R1/8/8/8 w - - 2 2")
 x = 3
 print(board)
 for n in range(x):
-    best_move = BoardUtility.mate_in_x(board, x-n)
+    best_move = BoardUtility.mate_in_x(board, x - n)
     print(best_move)
     board.push(best_move)
     # print(board)

@@ -42,13 +42,11 @@ savemodelfreq = 200
 savemodelcounter = 0
 reward_count = [0, 0, 0]
 
-
 # Creating a folder to save the trained model
 if not os.path.exists("model_saves"):
     raise ModuleNotFoundError("Wrong working directory.")
 working_dir = f"model_saves/Session_{len(os.listdir('model_saves'))}"
 os.mkdir(working_dir)
-
 
 # Start training
 for i in range(epochs):
@@ -85,7 +83,7 @@ for i in range(epochs):
         # Whites move
         white_move, white_reward, done = deepq.GetAction(board)
         board.push(white_move)
-        pgn += f"{t+1}. {white_move.uci()} "
+        pgn += f"{t + 1}. {white_move.uci()} "
 
         # Terminate game when done
         if done:
@@ -111,6 +109,16 @@ for i in range(epochs):
         state = utility.one_hot_board(board)
         board.push(next_white_move)
         next_state = utility.one_hot_board(board)
+
+        # START EXAMPLE CODE
+        # Lookup if a near checkmate in x moves is possible
+        possible_checks_white, possible_checks_black = utility.check_for_checks(board,
+                                                                                move_limit=1)  # 2 is a max limit
+        one_hot_white_checks, one_hot_black_checks = utility.one_hot_checks(possible_checks_white,
+                                                                            possible_checks_black)
+
+        boardValue = np.concatenate((boardValue, one_hot_white_checks, one_hot_black_checks), axis=0)
+        # END EXAMPLE CODE
 
         deepq.AddToMemory(state, white_reward, next_state, done)
 

@@ -5,6 +5,8 @@ import time
 import random
 
 """An example search agent with two implemented methods to determine the next move"""
+
+
 class ExampleAgent(Agent):
 
     # Initialize your agent with whatever parameters you want
@@ -12,16 +14,14 @@ class ExampleAgent(Agent):
         super().__init__(utility, time_limit_move)
         self.name = "Example search agent"
         self.author = "J. Duym & A. Troch"
-        
 
     # This agent does not perform any searching, it sinmply iterates trough all the moves possible and picks the one with the highest utility
     def calculate_move(self, board: chess.Board):
-        
         start_time = time.time()
-        
+
         # If the agent is playing as black, the utility values are flipped (negative-positive)
         flip_value = 1 if board.turn == chess.WHITE else -1
-        
+
         best_move = random.sample(list(board.legal_moves), 1)[0]
         best_utility = 0
         # Loop trough all legal moves

@@ -1,14 +1,13 @@
 import chess
 from project.chess_agents.agent import Agent
 
+
 class UciEngine():
-    
     def __init__(self, name: str, author: str, agent: Agent) -> None:
         self.name = name
         self.author = author
         self.agent = agent
-        
-        
+
     def engine_operation(self):
         # Create a clean chess board
         board = chess.Board()
@@ -46,8 +45,7 @@ class UciEngine():
 
                 elif input_val[0] == "isready":
                     print("readyok")
-                    
-                    
+
     def __uci(self):
         print("""id name {}
 id author {}

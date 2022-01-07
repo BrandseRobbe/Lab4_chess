@@ -51,6 +51,7 @@ class ChessAgent(Agent):
         legal_moves = list(board.legal_moves)
         best_move = legal_moves.pop()  # al een random move nemen
         highest_utility = self.utility.board_value(board)
+
         # Loop trough all legal moves
         for move in legal_moves:
             # Check if the maximum calculation time for this move has been reached

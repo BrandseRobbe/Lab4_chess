@@ -9,6 +9,19 @@ class BoardUtility(Utility):
         pass
 
     @staticmethod
+    def one_hot_checks(number_checks_white, number_checks_black):
+        # shape = (1, 1, 13)  # we draw a limit at 13 possible checks
+        shape = (8, 8, 13)  # we draw a limit at 13 possible checks
+
+        white_checks = np.zeros(shape=shape)
+        black_checks = np.zeros(shape=shape)
+
+        white_checks[:][:][number_checks_white] = 1
+        black_checks[:][:][number_checks_black] = 1
+
+        return white_checks, black_checks
+
+    @staticmethod
     def one_hot_board(board: chess.Board):
         board_array = np.zeros(shape=(8, 8, 13))
         one_hot_pieces = {
@@ -35,14 +48,14 @@ class BoardUtility(Utility):
         for i in range(8):
             for j in range(8):
                 current_piece = board.piece_at(current_tile)
-                if current_piece == None:
+                if current_piece is None:
                     board_array[i][j] = one_hot_pieces["E"]
                 else:
                     board_array[i][j] = one_hot_pieces[current_piece.symbol()]
                 current_tile += 1
         return board_array
 
-    # (onvermijdelijke) schaakmat vinden binnen x zetten
+    # search for (unavoidable) checkmate in x turns
     @staticmethod
     def mate_in_x(board: chess.Board, move_count, depth=0):
         for move in list(board.legal_moves):
@@ -51,7 +64,9 @@ class BoardUtility(Utility):
                 board.pop()
                 return move
             # schaakmat is nog niet gevonden
-            # alle mogelijke zetten van de tegenstander overlopen
+            # checkmate has not yet been found
+            # let's go over all possible moves of the opponent
+
             # als voor elke zet een schaakmat mogelijk is, dan werkt het algoritme wel
             elif move_count > depth + 1:  # mogen nog dieper gaan
                 mate_possible = True
@@ -59,21 +74,75 @@ class BoardUtility(Utility):
                     board.push(opponents_move)
                     # dieper naar chekmate zoeken
                     new_move = BoardUtility.mate_in_x(
-                        board, move_count, depth+1)
+                        board, move_count, depth + 1)
                     board.pop()
-                    # als geen chekmate gevonden is voor deze zet, dan hebben we geen garantie op schaakmat voor deze diepte
+                    # no guarantee of checkmate at this depth if no checkmate has been found for this move
                     if new_move is None:
                         # board.pop()
                         mate_possible = False
                         break
-                # als de volledige movelist volledig overlopen wordt betekent dit dat alle zetten kunnen resulteren in schaakmat, dus deze zet is ok
+                # every move can be considered a checkmate move when the whole list has been completed so we can take the current move.
                 if mate_possible:
                     board.pop()
                     return move
             board.pop()
         return None
 
+    @staticmethod
+    def check_for_checks(board: chess.Board, move_limit):
+        """
+            A simple breadth first search to check for checkmates after a certain amount of moves
+            :param board: The board to discover possible checks on.
+            :param move_limit: The maximum number of moves to scout ahead
+        """
+
+        board_queue = Queue()
+        nr_white_in_checkmate = nr_black_in_checkmate = 0  # The number of possible checkmates we will find
+
+        board_queue.push((board, 0))
+
+        while not board_queue.isEmpty():
+            board, depth = board_queue.pop()
+
+            for move in board.legal_moves:
+                if board.is_into_check(move):
+                    if board.turn == chess.WHITE:  # it's white's turn and black is in checkmate
+                        nr_black_in_checkmate += 1
+                    else:
+                        nr_white_in_checkmate += 1  # it's black's turn and white is in checkmate
+                else:
+                    if not depth + 1 > move_limit:
+                        depth += 1
+                        board.push(move)
+                        board_queue.push((board.copy(), depth))
+                        board.pop()  # revert the move
+                        depth -= 1
+
+        return nr_white_in_checkmate, nr_black_in_checkmate
+
     # hier wordt board info door het neural network gehaald om de utility te berekenen
 
     def board_value(self, board: chess.Board):
         pass
+
+
+class Queue:
+    "A container with a first-in-first-out (FIFO) queuing policy. Stolen from lab 1"
+
+    def __init__(self):
+        self.list = []
+
+    def push(self, item):
+        "Enqueue the 'item' into the queue"
+        self.list.insert(0, item)
+
+    def pop(self):
+        """
+          Dequeue the earliest enqueued item still in the queue. This
+          operation removes the item from the queue.
+        """
+        return self.list.pop()
+
+    def isEmpty(self):
+        "Returns true if the queue is empty"
+        return len(self.list) == 0
