@@ -1,25 +1,25 @@
 import chess
 import numpy as np
+from keras.models import load_model
 
-from project.chess_utilities.utility import Utility
+from project.Custom_Agent.utility import Utility
 
 
 class BoardUtility(Utility):
     def __init__(self) -> None:
-        pass
+        self.model = None
 
-    @staticmethod
-    def one_hot_checks(number_checks_white, number_checks_black):
-        # shape = (1, 1, 13)  # we draw a limit at 13 possible checks
-        shape = (8, 8, 13)  # we draw a limit at 13 possible checks
+    def load_chess_model(self, chess_model):
+        self.model = load_model(chess_model)
 
-        white_checks = np.zeros(shape=shape)
-        black_checks = np.zeros(shape=shape)
-
-        white_checks[:][:][number_checks_white] = 1
-        black_checks[:][:][number_checks_black] = 1
-
-        return white_checks, black_checks
+    # hier wordt board info door het neural network gehaald om de utility te berekenen
+    def board_value(self, board: chess.Board):
+        boardvalue = BoardUtility.get_board_data(board)
+        x1 = boardvalue[0][np.newaxis, ...]
+        x2 = boardvalue[1][np.newaxis, ...]
+        # Predict the qvalue for this state
+        qvalue = self.model.predict({"board_data": x1, "feature_data": x2})[0][0]
+        return qvalue
 
     @staticmethod
     def one_hot_board(board: chess.Board):
@@ -123,6 +123,7 @@ class BoardUtility(Utility):
                     nr_white_in_check += 1
                 else:
                     nr_black_in_check += 1  # it's black's turn
+
             # search deeper if max depth is not reached yet
             if not depth + 1 > move_limit:
                 for move in board.legal_moves:
@@ -131,10 +132,6 @@ class BoardUtility(Utility):
                     board.pop()  # revert the move
 
         return nr_white_in_check, nr_black_in_check
-
-    # hier wordt board info door het neural network gehaald om de utility te berekenen
-    def board_value(self, board: chess.Board):
-        pass
 
 
 class Queue:

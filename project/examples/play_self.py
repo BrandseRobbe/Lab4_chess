@@ -1,5 +1,4 @@
 #!/usr/bin/python3
-from project.chess_utilities.utility import Utility
 import chess
 import chess.svg
 from project.chess_utilities.example_utility import ExampleUtility

@@ -1,5 +1,5 @@
 import chess
-from project.chess_utilities.utility import Utility
+from project.Custom_Agent.utility import Utility
 
 class ExampleUtility(Utility):
 

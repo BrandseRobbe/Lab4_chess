@@ -20,31 +20,6 @@ class ChessAgent(Agent):
         self.time_limit = time_limit
         self.opening = True
 
-    def train_move(self, board: chess.Board, epsilon: float):
-        flip_value = 1 if board.turn == chess.WHITE else -1
-        legal_moves = list(board.legal_moves)
-        best_move = legal_moves.pop()  # al een random move nemen
-        highest_utility = flip_value * self.utility.board_value(board)
-
-        if random.random() < epsilon:
-            return best_move
-
-        # Loop trough all legal moves
-        for move in legal_moves:
-            board.push(move)  # Play the move
-            if board.is_checkmate():
-                best_move = move
-                highest_utility = 1000000
-                break
-
-            # Determine the value of the board after this move
-            value = flip_value * self.utility.board_value(board)
-            if value > highest_utility:
-                best_move = move
-                highest_utility = value
-
-        return best_move, flip_value * highest_utility, board
-
     def calculate_move(self, board: chess.Board):
         start_time = time.time()
         # During the opening, use a chess move book to select moves
@@ -55,6 +30,11 @@ class ChessAgent(Agent):
                     self.opening = False
                 else:
                     return entries[0].move
+
+        # look if checkmate in 2 moves is guaranteed
+        checkmate_move = BoardUtility.mate_in_x(board, 2)
+        if checkmate_move is not None:
+            return checkmate_move
 
         # If the agent is playing as black, the utility values are flipped (negative-positive)
         flip_value = 1 if board.turn == chess.WHITE else -1
@@ -70,16 +50,7 @@ class ChessAgent(Agent):
                 break
             board.push(move)  # Play the move
             if board.is_checkmate():
-                best_move = move
-                highest_utility = 1000000
-                break
-            # get usefull info from position
-            # board.is_stalemate()
-            # board.is_insufficient_material()
-            # board.outcome()
-            # board.can_claim_threefold_repetition()
-            # board.can_claim_draw()
-            # castle_rights
+                return move
 
             # Determine the value of the board after this move
             value = flip_value * self.utility.board_value(board)
@@ -89,18 +60,8 @@ class ChessAgent(Agent):
                 highest_utility = value
 
             board.pop()  # Revert the board to its original state, so we can try the next possible move
+
         return best_move
-
-    @property
-    def color(self):
-        return self.color
-
-    @color.setter
-    def color(self, value):
-        if value in ["White", "Black"]:
-            self.color = value
-        else:
-            raise ValueError("Chess color has to be 'White' or 'Black'")
 
 
 # voorbeeldcode
@@ -155,9 +116,10 @@ class QLearning():
         else:
             reward = self.stepreward
             done = False
-
         # Undo the move and return the values
         board.pop()
+        # black needs opposite rewards
+        reward *= flip_value
         return reward, utility, done
 
     # Action with epsilon
@@ -184,9 +146,9 @@ class QLearning():
                     done = d
 
         # Keep track of the reeceived rewards
-        if reward == self.stepreward:
+        if reward == self.stepreward or reward == -self.stepreward:
             self.rewardcount[2] += 1
-        elif reward == self.winreward:
+        elif reward == self.winreward or reward == -self.winreward:
             self.rewardcount[0] += 1
         else:
             self.rewardcount[1] += 1
@@ -217,10 +179,9 @@ class QLearning():
             if not done[t]:
                 # werken met learning rate t.o.v. transition model (temporal-difference q-learning)
                 # -> iets simpeler in uitvoering en ook een consistent result
-                y[t] = ((1 - self.learning_rate) * y[t]) + (
-                        self.learning_rate * (rewards[t] + (self.discount * y2[t]) - y[t]))
+                y[t] = y[t] + (self.learning_rate * (rewards[t] + (self.discount * y2[t]) - y[t]))
             else:
                 # als het schaakmat is, dan weten we de utility al.
                 y[t] = rewards[t]
 
-        self.policyModel.fit({"board_data": one_hot, "feature_data": features}, y, batch_size=self.batchsize, verbose=0)
+                self.policyModel.fit({"board_data": one_hot, "feature_data": features}, y, batch_size=self.batchsize, verbose=0)

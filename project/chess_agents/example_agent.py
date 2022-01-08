@@ -1,6 +1,6 @@
 from project.chess_agents.agent import Agent
 import chess
-from project.chess_utilities.utility import Utility
+from project.Custom_Agent.utility import Utility
 import time
 import random
 
