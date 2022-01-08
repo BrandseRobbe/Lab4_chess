@@ -5,6 +5,7 @@ import numpy as np
 from project.Custom_Agent.Board_utility import BoardUtility
 from project.chess_agents.agent import Agent
 import chess
+import chess.polyglot
 from project.Custom_Agent.Board_utility import BoardUtility
 import time
 import random
@@ -17,6 +18,7 @@ class ChessAgent(Agent):
     def __init__(self, utility, time_limit=14.5) -> None:
         super().__init__(utility=utility, time_limit_move=time_limit)
         self.time_limit = time_limit
+        self.opening = True
 
     def train_move(self, board: chess.Board, epsilon: float):
         flip_value = 1 if board.turn == chess.WHITE else -1
@@ -45,6 +47,15 @@ class ChessAgent(Agent):
 
     def calculate_move(self, board: chess.Board):
         start_time = time.time()
+        # During the opening, use a chess move book to select moves
+        if self.opening:
+            with chess.polyglot.open_reader("opening_book/Perfect2017.bin") as reader:
+                entries = list(reader.find_all(board))
+                if len(entries) == 0:
+                    self.opening = False
+                else:
+                    return entries[0].move
+
         # If the agent is playing as black, the utility values are flipped (negative-positive)
         flip_value = 1 if board.turn == chess.WHITE else -1
 
