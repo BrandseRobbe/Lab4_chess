@@ -16,10 +16,10 @@ from project.Custom_Agent.Neural_net import create_utilitymodel
 # Training hyperparameters
 epochs = 10000
 batchsize = 64
-learning_rate = 0.1  # kan nog gradueel verlaagt worden
+learning_rate = 0.3  # kan nog gradueel verlaagt worden
 discount = 0.9
-epsilon = 0.8
-decay = 0.999
+epsilon = 0.9
+decay = 0.9999
 max_moves = 300
 
 # Rewards

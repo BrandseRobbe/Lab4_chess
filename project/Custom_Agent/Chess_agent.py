@@ -13,12 +13,12 @@ import random
 """An example search agent with two implemented methods to determine the next move"""
 
 
-class ChessAgent(Agent):
+class ChessAgent():
     # Initialize your agent with whatever parameters you want
     def __init__(self, utility, time_limit=14.5) -> None:
-        super().__init__(utility=utility, time_limit_move=time_limit)
         self.time_limit = time_limit
         self.opening = True
+        self.utility = utility
 
     def calculate_move(self, board: chess.Board):
         start_time = time.time()
@@ -124,8 +124,21 @@ class QLearning():
 
     # Action with epsilon
     def GetAction(self, board: chess.Board):
-        legal_moves = list(board.legal_moves)
         flip_value = 1 if board.turn == chess.WHITE else -1
+        # look if checkmate in 2 moves is guaranteed to speed up learning
+        checkmate_move = BoardUtility.mate_in_x(board, 2)
+        if checkmate_move is not None:
+            reward = flip_value * self.winreward
+            board.push(checkmate_move)
+            done = False
+            if board.is_checkmate():
+                done = True
+                self.rewardcount[0] += 1
+
+            board.pop()
+            return checkmate_move, reward, done
+
+        legal_moves = list(board.legal_moves)
 
         # Select a random move
         move = legal_moves.pop(random.randrange(len(legal_moves)))

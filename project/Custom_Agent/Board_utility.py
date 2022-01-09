@@ -2,6 +2,7 @@ import chess
 import numpy as np
 from keras.models import load_model
 
+from project.Custom_Agent.Neural_net import create_utilitymodel
 from project.Custom_Agent.utility import Utility
 
 
@@ -10,7 +11,8 @@ class BoardUtility(Utility):
         self.model = None
 
     def load_chess_model(self, chess_model):
-        self.model = load_model(chess_model)
+        self.model = create_utilitymodel()
+        self.model.load_weights(chess_model)
 
     # hier wordt board info door het neural network gehaald om de utility te berekenen
     def board_value(self, board: chess.Board):

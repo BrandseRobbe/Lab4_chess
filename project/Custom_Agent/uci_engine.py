@@ -1,9 +1,10 @@
+from abc import ABC
+
 import chess
-from project.chess_agents.agent import Agent
 
 
-class UciEngine():
-    def __init__(self, name: str, author: str, agent: Agent) -> None:
+class UciEngine(ABC):
+    def __init__(self, name: str, author: str, agent) -> None:
         self.name = name
         self.author = author
         self.agent = agent
