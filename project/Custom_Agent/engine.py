@@ -3,7 +3,7 @@ from project.Custom_Agent.Chess_agent import ChessAgent
 from project.Custom_Agent.uci_engine import UciEngine
 
 if __name__ == "__main__":
-    model_file = "chess_model.h5"
+    model_file = "project/Custom_Agent/chess_model.h5"
     utility = BoardUtility()
     utility.load_chess_model(model_file)
     agent = ChessAgent(utility, 14)
