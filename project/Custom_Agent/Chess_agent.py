@@ -2,11 +2,11 @@ from collections import deque
 import os
 import numpy as np
 
-from project.Custom_Agent.Board_utility import BoardUtility
-from project.chess_agents.agent import Agent
+from Board_utility import BoardUtility
+#from project.chess_agents.agent import Agent
 import chess
 import chess.polyglot
-from project.Custom_Agent.Board_utility import BoardUtility
+from Board_utility import BoardUtility
 import time
 import random
 
@@ -96,7 +96,8 @@ class QLearning():
         x1 = boardvalue[0][np.newaxis, ...]
         x2 = boardvalue[1][np.newaxis, ...]
         # Predict the qvalue for this state
-        qvalue = self.policyModel.predict({"board_data": x1, "feature_data": x2})[0][0]
+        qvalue = self.policyModel.predict(
+            {"board_data": x1, "feature_data": x2})[0][0]
         return qvalue
 
     def rewardFunction(self, board: chess.Board, move: chess.Move):
@@ -185,16 +186,19 @@ class QLearning():
 
         one_hot = np.asarray(list(zip(*current_states))[0], dtype=float)
         features = np.asarray(list(zip(*current_states))[1], dtype=float)
-        y = self.policyModel.predict({"board_data": one_hot, "feature_data": features})[..., 0]
+        y = self.policyModel.predict(
+            {"board_data": one_hot, "feature_data": features})[..., 0]
         one_hot2 = np.asarray(list(zip(*current_states))[0], dtype=float)
         features2 = np.asarray(list(zip(*current_states))[1], dtype=float)
-        y2 = self.policyModel.predict({"board_data": one_hot2, "feature_data": features2})[..., 0]
+        y2 = self.policyModel.predict(
+            {"board_data": one_hot2, "feature_data": features2})[..., 0]
 
         for t in range(self.batchsize):
             if not done[t]:
                 # werken met learning rate t.o.v. transition model (temporal-difference q-learning)
                 # -> iets simpeler in uitvoering en ook een consistent result
-                y[t] = y[t] + (self.learning_rate * (rewards[t] + (self.discount * y2[t]) - y[t]))
+                y[t] = y[t] + (self.learning_rate *
+                               (rewards[t] + (self.discount * y2[t]) - y[t]))
             else:
                 # als het schaakmat is, dan weten we de utility al.
                 y[t] = rewards[t]

@@ -9,16 +9,16 @@ import chess
 import numpy as np
 from tqdm import tqdm
 
-from project.Custom_Agent.Board_utility import BoardUtility
-from project.Custom_Agent.Chess_agent import ChessAgent, QLearning
-from project.Custom_Agent.Neural_net import create_utilitymodel
+from Board_utility import BoardUtility
+from Chess_agent import ChessAgent, QLearning
+from Neural_net import create_utilitymodel
 
 # Training hyperparameters
 epochs = 10000
 batchsize = 64
 learning_rate = 0.3  # kan nog gradueel verlaagt worden
 discount = 0.8
-epsilon = 0.7
+epsilon = 0.3
 decay = 0.9999
 max_moves = 300
 
@@ -75,7 +75,8 @@ for i in range(epochs):
                     move, reward, done = deepq.GetAction(board)
                 else:
                     # choose one out of the first 5 moves at random
-                    move = entries[min([random.randrange(0, 5), len(entries)-1])].move
+                    move = entries[min(
+                        [random.randrange(0, 5), len(entries)-1])].move
                     # move = entries[0].move
                     reward = 0
                     done = False

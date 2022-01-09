@@ -4,10 +4,11 @@ import chess
 import numpy as np
 from keras.models import load_model
 
-from project.Custom_Agent.Neural_net import create_utilitymodel
-from project.Custom_Agent.utility import Utility
+from Neural_net import create_utilitymodel
+from utility import Utility
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+
 
 class BoardUtility(Utility):
     def __init__(self) -> None:
@@ -23,7 +24,8 @@ class BoardUtility(Utility):
         x1 = boardvalue[0][np.newaxis, ...]
         x2 = boardvalue[1][np.newaxis, ...]
         # Predict the qvalue for this state
-        qvalue = self.model.predict({"board_data": x1, "feature_data": x2})[0][0]
+        qvalue = self.model.predict(
+            {"board_data": x1, "feature_data": x2})[0][0]
         return qvalue
 
     @staticmethod
@@ -110,7 +112,8 @@ class BoardUtility(Utility):
         """
 
         board_queue = Queue()
-        nr_white_in_check = nr_black_in_check = 0  # The number of possible checks we will find
+        # The number of possible checks we will find
+        nr_white_in_check = nr_black_in_check = 0
 
         board_queue.push((board, 0))
         # keep history of positions, we don't want to count the same position twice
