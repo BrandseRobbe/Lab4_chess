@@ -1,5 +1,5 @@
 from collections import deque
-
+import os
 import numpy as np
 
 from project.Custom_Agent.Board_utility import BoardUtility
@@ -11,6 +11,8 @@ import time
 import random
 
 """An example search agent with two implemented methods to determine the next move"""
+
+ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 class ChessAgent():
@@ -24,7 +26,7 @@ class ChessAgent():
         start_time = time.time()
         # During the opening, use a chess move book to select moves
         if self.opening:
-            with chess.polyglot.open_reader("opening_book/Perfect2017.bin") as reader:
+            with chess.polyglot.open_reader(f'{ROOT_DIR}/opening_book/Perfect2017.bin') as reader:
                 entries = list(reader.find_all(board))
                 if len(entries) == 0:
                     self.opening = False
@@ -197,4 +199,5 @@ class QLearning():
                 # als het schaakmat is, dan weten we de utility al.
                 y[t] = rewards[t]
 
-                self.policyModel.fit({"board_data": one_hot, "feature_data": features}, y, batch_size=self.batchsize, verbose=0)
+                self.policyModel.fit({"board_data": one_hot, "feature_data": features}, y, batch_size=self.batchsize,
+                                     verbose=0)

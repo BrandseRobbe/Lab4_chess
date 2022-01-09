@@ -1,1 +1,1 @@
-python -m project.Custom_Agent.engine
+venv\Scripts\activate & python -m project.Custom_Agent.engine
